@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="สไลด์กลุ่ม 1 ม.5/5 หัวข้อ ทางสายกลาง (มัชฌิมาปฏิปทา) กับความพอประมาณ">
 <title>ทางสายกลางกับความพอประมาณ</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Sarabun:wght@400;600&display=swap">
@@ -23,6 +26,7 @@ body { background: var(--night); color: var(--bar-ink); font-family: var(--body)
 p, h2, h3, h4 { margin: 0; }
 
 #app { position: relative; height: 100%; background: var(--night); overflow: hidden; }
+@supports (height: 100dvh) { #app { height: 100dvh; } }
 #viewport { position: absolute; inset: 0 0 76px 0; }
 .fs #viewport { bottom: 0; }
 #stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center; background: var(--cream); box-shadow: 0 24px 80px rgba(0,0,0,.45); overflow: hidden; }
@@ -101,7 +105,7 @@ p, h2, h3, h4 { margin: 0; }
 .dot { appearance: none; width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 2px solid var(--gold); background: transparent; cursor: pointer; }
 .dot[aria-current="true"] { background: var(--gold); }
 #count { min-width: 56px; text-align: center; font-size: 18px; font-variant-numeric: tabular-nums; }
-.hint { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); max-width: calc(100% - 32px); background: var(--ink); color: var(--cream); border: 1px solid var(--gold); border-radius: 12px; padding: 10px 16px; font-size: 16px; text-align: center; }
+.hint { position: absolute; left: 50%; top: 16px; z-index: 5; transform: translateX(-50%); max-width: calc(100% - 32px); background: var(--ink); color: var(--cream); border: 1px solid var(--gold); border-radius: 12px; padding: 10px 16px; font-size: 16px; text-align: center; }
 @media (max-width: 520px) { .btn.go span { display: none; } .bar { gap: 10px; } }
 @media (prefers-reduced-motion: reduce) { .slide, .slide.on { transition: none; transform: none; } .bar { transition: none; } }
 </style>
@@ -259,27 +263,40 @@ p, h2, h3, h4 { margin: 0; }
     if (s > 0) stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
   }
   if (window.ResizeObserver) new ResizeObserver(fit).observe(vp);
-  window.addEventListener('resize', fit); fit();
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+  fit();
 
   function say(msg) {
     hint.textContent = msg; hint.hidden = false;
     clearTimeout(hintTimer); hintTimer = setTimeout(function () { hint.hidden = true; }, 4000);
   }
   function fsEl() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  var pseudo = false;
+  function isFs() { return !!fsEl() || pseudo; }
+  function togglePseudo() {
+    pseudo = !pseudo; onFs();
+    if (pseudo) say('แตะหน้าจอเพื่อเรียกปุ่ม');
+  }
   function toggleFs() {
     try {
+      if (pseudo) { togglePseudo(); return; }
       if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
       var req = app.requestFullscreen || app.webkitRequestFullscreen;
-      if (!req) { say('เบราว์เซอร์นี้ไม่รองรับโหมดเต็มจอ'); return; }
-      var p = req.call(app);
-      if (p && p.catch) p.catch(function () { say('เปิดโหมดเต็มจอไม่ได้ในหน้านี้ ลองเปิดลิงก์ในแท็บใหม่แล้วกดอีกครั้ง'); });
-    } catch (e) { say('เปิดโหมดเต็มจอไม่ได้ในหน้านี้ ลองเปิดลิงก์ในแท็บใหม่แล้วกดอีกครั้ง'); }
+      if (!req) { togglePseudo(); return; }
+      var p = req.call(app, { navigationUI: 'hide' });
+      if (p && p.catch) p.catch(function () { togglePseudo(); });
+    } catch (e) { togglePseudo(); }
   }
   function wake() {
     app.classList.remove('idle'); clearTimeout(idleTimer);
-    if (fsEl()) idleTimer = setTimeout(function () { app.classList.add('idle'); }, 2500);
+    if (isFs()) idleTimer = setTimeout(function () { app.classList.add('idle'); }, 2500);
   }
-  function onFs() { app.classList.toggle('fs', !!fsEl()); wake(); fit(); }
+  function onFs() {
+    app.classList.toggle('fs', isFs()); wake(); fit();
+    requestAnimationFrame(fit); setTimeout(fit, 350);
+  }
   document.addEventListener('fullscreenchange', onFs);
   document.addEventListener('webkitfullscreenchange', onFs);
   ['mousemove', 'touchstart', 'keydown'].forEach(function (t) { document.addEventListener(t, wake, { passive: true }); });
