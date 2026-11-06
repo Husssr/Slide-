@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: thang-sai-klang-slides
+    runtime: static
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=300
